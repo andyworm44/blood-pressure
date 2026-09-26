@@ -338,11 +338,24 @@ textarea { resize: vertical; min-height: 60px; font-family: inherit; }
   color: #5b21b6;
 }
 
-/* Chart Container */
-.chart-container {
-  position: relative;
-  height: 300px;
-  margin: 16px 0;
+/* Scrollable Chart */
+.chart-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  margin: 0 -8px;
+  padding: 0 8px;
+}
+.chart-inner {
+  height: 280px;
+  min-width: 100%;
+}
+.chart-scroll::-webkit-scrollbar {
+  height: 6px;
+}
+.chart-scroll::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
 }
 
 /* Toast notification */
@@ -590,24 +603,33 @@ textarea { resize: vertical; min-height: 60px; font-family: inherit; }
 
     <div class="card">
       <h2>收縮壓趨勢圖</h2>
-      <p style="font-size:14px; color:var(--text-light); margin-bottom:8px;">正常 &lt;120 ｜ 偏高 120-129 ｜ 高血壓 &ge;130</p>
-      <div class="chart-container" style="height:280px;">
-        <canvas id="sysChart"></canvas>
+      <p style="font-size:14px; color:var(--text-light); margin-bottom:4px;">正常 &lt;120 ｜ 偏高 120-129 ｜ 高血壓 &ge;130</p>
+      <p style="font-size:13px; color:var(--primary); margin-bottom:8px;">左右滑動查看更多 →</p>
+      <div class="chart-scroll">
+        <div class="chart-inner" id="sysChartWrap">
+          <canvas id="sysChart"></canvas>
+        </div>
       </div>
     </div>
 
     <div class="card">
       <h2>舒張壓趨勢圖</h2>
-      <p style="font-size:14px; color:var(--text-light); margin-bottom:8px;">正常 &lt;80 ｜ 高血壓 &ge;80</p>
-      <div class="chart-container" style="height:280px;">
-        <canvas id="diaChart"></canvas>
+      <p style="font-size:14px; color:var(--text-light); margin-bottom:4px;">正常 &lt;80 ｜ 高血壓 &ge;80</p>
+      <p style="font-size:13px; color:var(--primary); margin-bottom:8px;">左右滑動查看更多 →</p>
+      <div class="chart-scroll">
+        <div class="chart-inner" id="diaChartWrap">
+          <canvas id="diaChart"></canvas>
+        </div>
       </div>
     </div>
 
     <div class="card">
       <h2>脈搏趨勢圖</h2>
-      <div class="chart-container">
-        <canvas id="pulseChart"></canvas>
+      <p style="font-size:13px; color:var(--primary); margin-bottom:8px;">左右滑動查看更多 →</p>
+      <div class="chart-scroll">
+        <div class="chart-inner" id="pulseChartWrap">
+          <canvas id="pulseChart"></canvas>
+        </div>
       </div>
     </div>
   </div>
@@ -1274,6 +1296,31 @@ function renderCharts() {
     };
   }
 
+  // Dynamic chart width: at least 40px per data point, minimum screen width
+  const PX_PER_POINT = 40;
+  const n = filtered.length;
+  const containerW = document.querySelector('.chart-scroll')?.clientWidth || 700;
+  const chartW = Math.max(containerW, n * PX_PER_POINT);
+
+  document.getElementById('sysChartWrap').style.width = chartW + 'px';
+  document.getElementById('diaChartWrap').style.width = chartW + 'px';
+  document.getElementById('pulseChartWrap').style.width = chartW + 'px';
+
+  // Scroll charts to the right (latest data)
+  document.querySelectorAll('.chart-scroll').forEach(el => {
+    setTimeout(() => el.scrollLeft = el.scrollWidth, 100);
+  });
+
+  // Set canvas sizes
+  const chartH = 280;
+  ['sysChart','diaChart','pulseChart'].forEach(id => {
+    const c = document.getElementById(id);
+    c.width = chartW;
+    c.height = chartH;
+    c.style.width = chartW + 'px';
+    c.style.height = chartH + 'px';
+  });
+
   // Systolic Chart (收縮壓)
   if (sysChart) sysChart.destroy();
   const sysCtx = document.getElementById('sysChart').getContext('2d');
@@ -1290,20 +1337,19 @@ function renderCharts() {
         borderColor: '#dc2626',
         backgroundColor: 'rgba(220,38,38,0.08)',
         borderWidth: 2.5,
-        pointRadius: 3,
+        pointRadius: 4,
         pointBackgroundColor: sysData.map(v => v >= 140 ? '#dc2626' : v >= 130 ? '#f59e0b' : '#16a34a'),
         fill: true,
         tension: 0.3
       }]
     },
     plugins: [refLinePlugin([
-      { value: 120, color: '#16a34a', label: '正常 120' },
-      { value: 130, color: '#f59e0b', label: '偏高 130' },
-      { value: 140, color: '#dc2626', label: '高血壓 140' }
+      { value: 120, color: '#16a34a', label: '120' },
+      { value: 130, color: '#f59e0b', label: '130' },
+      { value: 140, color: '#dc2626', label: '140' }
     ])],
     options: {
-      responsive: true,
-      maintainAspectRatio: false,
+      responsive: false,
       plugins: {
         legend: { display: false },
         tooltip: {
@@ -1313,7 +1359,7 @@ function renderCharts() {
         }
       },
       scales: {
-        x: { ticks: { maxRotation: 45, font: { size: 10 }, maxTicksLimit: 20 } },
+        x: { ticks: { maxRotation: 60, font: { size: 11 } } },
         y: {
           min: Math.max(sysMin - 15, 80),
           max: sysMax + 15,
@@ -1340,19 +1386,18 @@ function renderCharts() {
         borderColor: '#2563eb',
         backgroundColor: 'rgba(37,99,235,0.08)',
         borderWidth: 2.5,
-        pointRadius: 3,
+        pointRadius: 4,
         pointBackgroundColor: diaData.map(v => v >= 90 ? '#dc2626' : v >= 80 ? '#f59e0b' : '#16a34a'),
         fill: true,
         tension: 0.3
       }]
     },
     plugins: [refLinePlugin([
-      { value: 80, color: '#f59e0b', label: '偏高 80' },
-      { value: 90, color: '#dc2626', label: '高血壓 90' }
+      { value: 80, color: '#f59e0b', label: '80' },
+      { value: 90, color: '#dc2626', label: '90' }
     ])],
     options: {
-      responsive: true,
-      maintainAspectRatio: false,
+      responsive: false,
       plugins: {
         legend: { display: false },
         tooltip: {
@@ -1362,7 +1407,7 @@ function renderCharts() {
         }
       },
       scales: {
-        x: { ticks: { maxRotation: 45, font: { size: 10 }, maxTicksLimit: 20 } },
+        x: { ticks: { maxRotation: 60, font: { size: 11 } } },
         y: {
           min: Math.max(diaMin - 10, 40),
           max: diaMax + 10,
@@ -1386,17 +1431,16 @@ function renderCharts() {
         borderColor: '#16a34a',
         backgroundColor: 'rgba(22,163,74,0.08)',
         borderWidth: 2.5,
-        pointRadius: 3,
+        pointRadius: 4,
         fill: true,
         tension: 0.3
       }]
     },
     options: {
-      responsive: true,
-      maintainAspectRatio: false,
+      responsive: false,
       plugins: { legend: { display: false } },
       scales: {
-        x: { ticks: { maxRotation: 45, font: { size: 10 }, maxTicksLimit: 20 } },
+        x: { ticks: { maxRotation: 60, font: { size: 11 } } },
         y: { min: 40, max: 100, ticks: { font: { size: 13 }, stepSize: 10 } }
       }
     }
