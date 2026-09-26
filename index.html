@@ -1,0 +1,1513 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+<title>血壓記錄本</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+<style>
+:root {
+  --primary: #2563eb;
+  --primary-light: #dbeafe;
+  --danger: #dc2626;
+  --danger-light: #fee2e2;
+  --warning: #f59e0b;
+  --warning-light: #fef3c7;
+  --success: #16a34a;
+  --success-light: #dcfce7;
+  --bg: #f8fafc;
+  --card: #ffffff;
+  --text: #1e293b;
+  --text-light: #64748b;
+  --border: #e2e8f0;
+  --radius: 16px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft JhengHei", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 18px;
+  line-height: 1.6;
+  padding-bottom: 100px;
+}
+
+.container { max-width: 800px; margin: 0 auto; padding: 16px; }
+
+/* Header */
+.header {
+  background: linear-gradient(135deg, #2563eb, #7c3aed);
+  color: white;
+  padding: 24px 20px;
+  text-align: center;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+.header h1 { font-size: 28px; margin-bottom: 4px; }
+.header .subtitle { font-size: 15px; opacity: 0.85; }
+
+/* User Tabs */
+.user-tabs {
+  display: flex;
+  gap: 0;
+  margin: 20px 0 16px;
+  border-radius: var(--radius);
+  overflow: hidden;
+  border: 3px solid var(--primary);
+}
+.user-tab {
+  flex: 1;
+  padding: 16px;
+  font-size: 22px;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: white;
+  color: var(--primary);
+}
+.user-tab.active {
+  background: var(--primary);
+  color: white;
+}
+
+/* Navigation Tabs */
+.nav-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.nav-tab {
+  flex: 1;
+  min-width: 80px;
+  padding: 14px 10px;
+  font-size: 18px;
+  font-weight: 600;
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  cursor: pointer;
+  background: white;
+  color: var(--text-light);
+  transition: all 0.2s;
+  text-align: center;
+}
+.nav-tab.active {
+  border-color: var(--primary);
+  background: var(--primary-light);
+  color: var(--primary);
+}
+
+/* Cards */
+.card {
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 24px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  border: 1px solid var(--border);
+}
+.card h2 {
+  font-size: 22px;
+  margin-bottom: 16px;
+  color: var(--text);
+}
+
+/* Form */
+.form-group { margin-bottom: 20px; }
+.form-group label {
+  display: block;
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--text);
+}
+.form-row {
+  display: flex;
+  gap: 12px;
+}
+.form-row .form-group { flex: 1; }
+
+input[type="date"], input[type="number"], input[type="text"], select, textarea {
+  width: 100%;
+  padding: 14px 16px;
+  font-size: 20px;
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  background: white;
+  color: var(--text);
+  -webkit-appearance: none;
+}
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.15);
+}
+textarea { resize: vertical; min-height: 60px; font-family: inherit; }
+
+/* Time of day selector */
+.time-selector {
+  display: flex;
+  gap: 0;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 2px solid var(--border);
+}
+.time-btn {
+  flex: 1;
+  padding: 14px;
+  font-size: 20px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  background: white;
+  color: var(--text-light);
+  transition: all 0.2s;
+}
+.time-btn.active {
+  color: white;
+}
+.time-btn.morning.active { background: #f59e0b; }
+.time-btn.evening.active { background: #7c3aed; }
+
+/* BP Input with unit */
+.bp-input-group {
+  position: relative;
+}
+.bp-input-group .unit {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-light);
+  font-size: 14px;
+}
+
+/* Submit Button */
+.btn-submit {
+  width: 100%;
+  padding: 18px;
+  font-size: 24px;
+  font-weight: 700;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  background: linear-gradient(135deg, #2563eb, #7c3aed);
+  color: white;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(37,99,235,0.3);
+}
+.btn-submit:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(37,99,235,0.4); }
+.btn-submit:active { transform: translateY(0); }
+
+.btn-secondary {
+  padding: 12px 20px;
+  font-size: 16px;
+  font-weight: 600;
+  border: 2px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  background: white;
+  color: var(--text);
+  transition: all 0.2s;
+}
+.btn-secondary:hover { border-color: var(--primary); color: var(--primary); }
+
+.btn-danger {
+  padding: 8px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  background: var(--danger-light);
+  color: var(--danger);
+}
+
+/* Latest reading display */
+.latest-reading {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.reading-box {
+  text-align: center;
+  padding: 16px 8px;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+.reading-box .label {
+  font-size: 14px;
+  color: var(--text-light);
+  margin-bottom: 4px;
+}
+.reading-box .value {
+  font-size: 36px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+.reading-box .unit-small {
+  font-size: 13px;
+  color: var(--text-light);
+}
+.reading-box.systolic .value { color: #dc2626; }
+.reading-box.diastolic .value { color: #2563eb; }
+.reading-box.pulse .value { color: #16a34a; }
+
+/* BP Classification Badge */
+.bp-badge {
+  display: inline-block;
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 16px;
+  font-weight: 700;
+  margin-top: 8px;
+}
+.bp-normal { background: var(--success-light); color: var(--success); }
+.bp-elevated { background: var(--warning-light); color: #b45309; }
+.bp-high1 { background: #fed7aa; color: #c2410c; }
+.bp-high2 { background: var(--danger-light); color: var(--danger); }
+
+/* Stats Summary */
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.stat-item {
+  background: #f8fafc;
+  padding: 16px;
+  border-radius: 12px;
+  text-align: center;
+}
+.stat-item .stat-label {
+  font-size: 14px;
+  color: var(--text-light);
+  margin-bottom: 4px;
+}
+.stat-item .stat-value {
+  font-size: 24px;
+  font-weight: 700;
+}
+
+/* History table */
+.history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 16px;
+}
+.history-table th {
+  background: #f1f5f9;
+  padding: 12px 8px;
+  text-align: center;
+  font-weight: 700;
+  position: sticky;
+  top: 0;
+  font-size: 14px;
+  color: var(--text-light);
+}
+.history-table td {
+  padding: 12px 8px;
+  text-align: center;
+  border-bottom: 1px solid var(--border);
+  font-size: 18px;
+}
+.history-table tr:hover td { background: #f8fafc; }
+.morning-tag {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  background: #fef3c7;
+  color: #92400e;
+}
+.evening-tag {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  background: #ede9fe;
+  color: #5b21b6;
+}
+
+/* Chart Container */
+.chart-container {
+  position: relative;
+  height: 300px;
+  margin: 16px 0;
+}
+
+/* Toast notification */
+.toast {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%) translateY(100px);
+  background: #1e293b;
+  color: white;
+  padding: 16px 32px;
+  border-radius: 12px;
+  font-size: 18px;
+  font-weight: 600;
+  z-index: 1000;
+  transition: transform 0.3s ease;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+}
+.toast.show { transform: translateX(-50%) translateY(0); }
+
+/* Page sections */
+.page { display: none; }
+.page.active { display: block; }
+
+/* Filter row */
+.filter-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.filter-row select, .filter-row input {
+  font-size: 16px;
+  padding: 10px 12px;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .form-row { flex-direction: column; gap: 0; }
+  .stats-grid { grid-template-columns: 1fr; }
+  .reading-box .value { font-size: 28px; }
+  .container { padding: 10px; }
+  .history-table td, .history-table th { padding: 8px 4px; font-size: 15px; }
+}
+
+/* Edit modal */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 200;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.modal-overlay.show { display: flex; }
+.modal {
+  background: white;
+  border-radius: var(--radius);
+  padding: 24px;
+  width: 100%;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+.modal h3 { font-size: 22px; margin-bottom: 16px; }
+.modal-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+}
+.modal-actions button { flex: 1; padding: 14px; font-size: 18px; font-weight: 600; border-radius: 10px; cursor: pointer; border: none; }
+.modal-actions .btn-save { background: var(--primary); color: white; }
+.modal-actions .btn-cancel { background: #f1f5f9; color: var(--text); }
+
+/* Export section */
+.export-btns {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.export-btns button {
+  flex: 1;
+  min-width: 120px;
+}
+
+/* User management */
+.user-manage-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  align-items: center;
+}
+.user-manage-row input {
+  flex: 1;
+  font-size: 18px;
+  padding: 12px;
+}
+.user-manage-row button {
+  padding: 12px 20px;
+  font-size: 18px;
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>血壓記錄本</h1>
+  <div class="subtitle">每日記錄，守護健康</div>
+</div>
+
+<div class="container">
+  <!-- User Tabs -->
+  <div class="user-tabs" id="userTabs"></div>
+
+  <!-- Nav Tabs -->
+  <div class="nav-tabs">
+    <button class="nav-tab active" onclick="showPage('record')">記錄</button>
+    <button class="nav-tab" onclick="showPage('history')">歷史</button>
+    <button class="nav-tab" onclick="showPage('chart')">趨勢</button>
+    <button class="nav-tab" onclick="showPage('settings')">設定</button>
+  </div>
+
+  <!-- Record Page -->
+  <div class="page active" id="page-record">
+    <!-- Latest Reading Card -->
+    <div class="card" id="latestCard" style="display:none;">
+      <h2>最近一次量測</h2>
+      <div id="latestInfo" style="font-size:15px; color:var(--text-light); margin-bottom:12px;"></div>
+      <div class="latest-reading" id="latestReading"></div>
+      <div style="text-align:center;" id="latestBadge"></div>
+    </div>
+
+    <!-- Input Card -->
+    <div class="card">
+      <h2>新增記錄</h2>
+
+      <div class="form-group">
+        <label>日期</label>
+        <input type="date" id="inputDate">
+      </div>
+
+      <div class="form-group">
+        <label>時段</label>
+        <div class="time-selector">
+          <button class="time-btn morning active" onclick="setTimeOfDay('morning')">早上</button>
+          <button class="time-btn evening" onclick="setTimeOfDay('evening')">晚上</button>
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>收縮壓</label>
+          <div class="bp-input-group">
+            <input type="number" id="inputSystolic" placeholder="120" inputmode="numeric" min="60" max="250">
+            <span class="unit">mmHg</span>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>舒張壓</label>
+          <div class="bp-input-group">
+            <input type="number" id="inputDiastolic" placeholder="80" inputmode="numeric" min="30" max="200">
+            <span class="unit">mmHg</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>脈搏</label>
+        <div class="bp-input-group">
+          <input type="number" id="inputPulse" placeholder="72" inputmode="numeric" min="30" max="200">
+          <span class="unit">次/分鐘</span>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>備註（選填）</label>
+        <textarea id="inputNote" placeholder="例如：血壓藥吃一顆、頭暈、運動後..."></textarea>
+      </div>
+
+      <button class="btn-submit" onclick="saveRecord()">儲存記錄</button>
+    </div>
+  </div>
+
+  <!-- History Page -->
+  <div class="page" id="page-history">
+    <div class="card">
+      <h2>量測紀錄</h2>
+      <div class="filter-row">
+        <select id="filterTime" onchange="renderHistory()" style="flex:1;">
+          <option value="all">全部時段</option>
+          <option value="morning">早上</option>
+          <option value="evening">晚上</option>
+        </select>
+        <select id="filterRange" onchange="renderHistory()" style="flex:1;">
+          <option value="30">近30天</option>
+          <option value="90">近3個月</option>
+          <option value="180">近半年</option>
+          <option value="all">全部</option>
+        </select>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="history-table">
+          <thead>
+            <tr>
+              <th>日期</th>
+              <th>時段</th>
+              <th>收縮壓</th>
+              <th>舒張壓</th>
+              <th>脈搏</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="historyBody"></tbody>
+        </table>
+      </div>
+      <div id="historyEmpty" style="text-align:center; padding:40px; color:var(--text-light); display:none;">
+        目前沒有記錄
+      </div>
+    </div>
+  </div>
+
+  <!-- Chart Page -->
+  <div class="page" id="page-chart">
+    <!-- Stats Card -->
+    <div class="card">
+      <h2>統計摘要</h2>
+      <div class="filter-row">
+        <select id="statsRange" onchange="renderCharts()" style="flex:1;">
+          <option value="30">近30天</option>
+          <option value="90">近3個月</option>
+          <option value="180">近半年</option>
+          <option value="all">全部</option>
+        </select>
+        <select id="statsTime" onchange="renderCharts()" style="flex:1;">
+          <option value="all">全部時段</option>
+          <option value="morning">早上</option>
+          <option value="evening">晚上</option>
+        </select>
+      </div>
+      <div class="stats-grid" id="statsGrid"></div>
+    </div>
+
+    <div class="card">
+      <h2>收縮壓趨勢圖</h2>
+      <p style="font-size:14px; color:var(--text-light); margin-bottom:8px;">正常 &lt;120 ｜ 偏高 120-129 ｜ 高血壓 &ge;130</p>
+      <div class="chart-container" style="height:280px;">
+        <canvas id="sysChart"></canvas>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>舒張壓趨勢圖</h2>
+      <p style="font-size:14px; color:var(--text-light); margin-bottom:8px;">正常 &lt;80 ｜ 高血壓 &ge;80</p>
+      <div class="chart-container" style="height:280px;">
+        <canvas id="diaChart"></canvas>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>脈搏趨勢圖</h2>
+      <div class="chart-container">
+        <canvas id="pulseChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Page -->
+  <div class="page" id="page-settings">
+    <div class="card">
+      <h2>使用者管理</h2>
+      <div id="userList"></div>
+      <div class="user-manage-row">
+        <input type="text" id="newUserName" placeholder="新增使用者名稱">
+        <button class="btn-secondary" onclick="addUser()">新增</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>匯出資料</h2>
+      <p style="margin-bottom:16px; color:var(--text-light);">匯出目前使用者的所有記錄</p>
+      <div class="export-btns">
+        <button class="btn-secondary" onclick="exportCSV()">匯出 CSV</button>
+        <button class="btn-secondary" onclick="exportJSON()">備份全部資料</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>匯入資料</h2>
+      <p style="margin-bottom:16px; color:var(--text-light);">從備份檔案還原資料</p>
+      <input type="file" id="importFile" accept=".json" style="font-size:16px;" onchange="importJSON(event)">
+    </div>
+
+    <div class="card">
+      <h2>血壓分級參考</h2>
+      <div style="font-size:16px; line-height:2;">
+        <span class="bp-badge bp-normal">正常</span> 收縮壓 &lt; 120 且 舒張壓 &lt; 80<br>
+        <span class="bp-badge bp-elevated">偏高</span> 收縮壓 120-129 且 舒張壓 &lt; 80<br>
+        <span class="bp-badge bp-high1">高血壓一期</span> 收縮壓 130-139 或 舒張壓 80-89<br>
+        <span class="bp-badge bp-high2">高血壓二期</span> 收縮壓 &ge; 140 或 舒張壓 &ge; 90
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal">
+    <h3>編輯記錄</h3>
+    <div class="form-group">
+      <label>日期</label>
+      <input type="date" id="editDate">
+    </div>
+    <div class="form-group">
+      <label>時段</label>
+      <select id="editTime" style="font-size:20px;">
+        <option value="morning">早上</option>
+        <option value="evening">晚上</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>收縮壓</label>
+        <input type="number" id="editSystolic" inputmode="numeric">
+      </div>
+      <div class="form-group">
+        <label>舒張壓</label>
+        <input type="number" id="editDiastolic" inputmode="numeric">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>脈搏</label>
+      <input type="number" id="editPulse" inputmode="numeric">
+    </div>
+    <div class="form-group">
+      <label>備註</label>
+      <textarea id="editNote"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeEditModal()">取消</button>
+      <button class="btn-save" onclick="saveEdit()">儲存</button>
+    </div>
+    <div style="text-align:center; margin-top:12px;">
+      <button class="btn-danger" onclick="deleteRecord()">刪除此筆記錄</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ============ DATA LAYER ============
+const STORAGE_KEY = 'bp_app_data';
+
+function loadData() {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (raw) return JSON.parse(raw);
+  return null;
+}
+
+function saveData(data) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+function initData() {
+  let data = loadData();
+  // Version 3: added Dad September data + corrected April dates
+  if (!data || data.version !== 4) {
+    data = {
+      version: 4,
+      users: ['爸爸', '媽媽'],
+      currentUser: '爸爸',
+      records: {}
+    };
+    // Pre-load historical data from the handwritten records
+    data.records['爸爸'] = getDadHistoricalData();
+    data.records['媽媽'] = getMomHistoricalData();
+    saveData(data);
+  }
+  return data;
+}
+
+// Historical data extracted from photos
+function getDadHistoricalData() {
+  const records = [];
+  const r = (date, time, sys, dia, pulse, note) => {
+    records.push({ id: Date.now() + Math.random(), date, time, systolic: sys, diastolic: dia, pulse, note: note || '' });
+  };
+
+  // === IMG_7709 - 早上 (morning) ===
+  r('2026-07-03','morning',126,98,75,'');
+  r('2026-07-04','morning',132,81,72,'');
+  r('2026-07-05','morning',132,83,69,'');
+  r('2026-07-06','morning',133,82,80,'');
+  r('2026-07-07','morning',131,82,68,'');
+  r('2026-07-08','morning',133,79,65,'');
+  r('2026-07-09','morning',141,79,71,'');
+  r('2026-07-10','morning',131,84,67,'');
+  r('2026-07-11','morning',130,77,64,'');
+
+  // === IMG_7709 - 晚上 (evening) ===
+  r('2026-07-03','evening',135,83,71,'');
+  r('2026-07-04','evening',137,81,71,'');
+  r('2026-07-05','evening',134,82,62,'');
+  r('2026-07-06','evening',136,86,71,'');
+  r('2026-07-07','evening',136,83,75,'');
+  r('2026-07-08','evening',135,87,68,'');
+  r('2026-07-09','evening',134,86,72,'');
+  r('2026-07-10','evening',147,80,63,'');
+
+  // IMG_7709 continued - morning
+  r('2026-07-12','morning',136,84,68,'');
+  r('2026-07-13','morning',132,82,75,'');
+  r('2026-07-14','morning',138,84,65,'');
+  r('2026-07-16','morning',134,88,67,'');
+  r('2026-07-17','morning',141,82,70,'');
+  r('2026-07-18','morning',133,84,65,'');
+  r('2026-07-19','morning',138,82,72,'');
+
+  // === IMG_7710 - 早上 (morning) - with note about medication ===
+  r('2026-07-20','morning',130,78,62,'');
+  r('2026-07-21','morning',131,72,69,'');
+  r('2026-07-22','morning',135,80,69,'');
+  r('2026-07-23','morning',138,88,68,'');
+  r('2026-07-24','morning',149,79,68,'');
+  r('2026-07-25','morning',130,81,72,'');
+  r('2026-07-26','morning',130,74,65,'');
+  r('2026-07-27','morning',114,60,72,'');
+  r('2026-07-28','morning',141,70,72,'');
+
+  // IMG_7710 - 晚上 (evening)
+  r('2026-07-20','evening',111,69,73,'');
+  r('2026-07-21','evening',137,74,76,'');
+  r('2026-07-22','evening',132,76,68,'');
+
+  // IMG_7710 continued - morning
+  r('2026-07-29','morning',131,76,73,'');
+  r('2026-07-30','morning',138,70,78,'');
+  r('2026-07-31','morning',131,69,64,'');
+
+  // IMG_7710 continued
+  r('2026-08-01','morning',119,71,72,'');
+  r('2026-08-02','morning',114,74,72,'');
+  r('2026-08-03','morning',128,77,71,'');
+  r('2026-08-04','morning',148,78,65,'');
+  r('2026-08-05','morning',117,76,76,'');
+  r('2026-08-06','morning',128,78,76,'');
+
+  // === IMG_7711 - 三總醫院紙張 ===
+  // 晚上 (evening)
+  r('2026-03-16','evening',131,83,80,'');
+
+  // 早上 (morning) - March dates
+  r('2026-03-01','morning',150,76,76,'');
+  r('2026-03-02','morning',120,76,72,'');
+  r('2026-03-03','morning',130,76,76,'');
+  r('2026-03-04','morning',116,73,75,'');
+  r('2026-03-05','morning',134,83,73,'');
+  r('2026-03-06','morning',117,61,72,'');
+  r('2026-03-07','morning',140,78,69,'');
+  r('2026-03-08','morning',135,78,82,'');
+  r('2026-03-09','morning',131,81,69,'');
+
+  // === IMG_7712 - 早上/晚上 ===
+  r('2026-03-18','morning',136,82,87,'');
+  r('2026-03-19','morning',139,84,72,'');
+  r('2026-03-20','morning',136,86,72,'');
+  r('2026-03-21','morning',133,79,72,'');
+  r('2026-03-22','morning',134,78,72,'');
+  r('2026-03-23','morning',134,78,76,'');
+  r('2026-03-24','morning',140,80,71,'');
+  r('2026-03-25','morning',134,81,73,'');
+
+  // IMG_7712 - 晚上
+  r('2026-03-18','evening',138,84,80,'');
+
+  // === IMG_7714 - 12月 早上 ===
+  r('2025-12-07','morning',134,83,71,'');
+  r('2025-12-10','morning',140,82,67,'');
+  r('2025-12-28','morning',130,76,72,'');
+
+  // === IMG_7714 - 4月 早上 (原誤讀為1月) ===
+  r('2026-04-03','morning',131,86,68,'');
+  r('2026-04-05','morning',137,87,69,'');
+  r('2026-04-06','morning',135,85,73,'');
+  r('2026-04-07','morning',135,82,67,'');
+  r('2026-04-08','morning',131,82,67,'');
+  r('2026-04-09','morning',136,84,72,'');
+  r('2026-04-15','morning',134,81,73,'');
+
+  // IMG_7714 - 4月 晚上
+  r('2026-04-08','evening',136,84,81,'');
+  r('2026-04-09','evening',138,85,71,'');
+
+  // === IMG_7713 - 4月中下旬 早上 ===
+  r('2026-04-19','morning',137,82,71,'');
+  r('2026-04-20','morning',136,79,75,'');
+  r('2026-04-21','morning',138,86,67,'');
+  r('2026-04-22','morning',135,86,72,'');
+  r('2026-04-23','morning',133,84,75,'');
+  r('2026-04-24','morning',135,86,72,'');
+  r('2026-04-25','morning',133,84,75,'');
+  r('2026-04-26','morning',133,87,72,'');
+
+  // IMG_7713 - 4月中下旬 晚上
+  r('2026-04-19','evening',127,78,73,'');
+  r('2026-04-20','evening',137,78,73,'');
+  r('2026-04-21','evening',135,82,80,'');
+  r('2026-04-22','evening',136,85,73,'');
+  r('2026-04-23','evening',136,77,70,'');
+
+  // === IMG_7713 右頁 - 9月 早上 ===
+  r('2026-09-04','morning',136,85,76,'');
+  r('2026-09-05','morning',136,76,76,'');
+  r('2026-09-06','morning',128,76,71,'');
+  r('2026-09-07','morning',125,76,76,'');
+  r('2026-09-08','morning',130,78,76,'');
+  r('2026-09-09','morning',128,87,71,'');
+  r('2026-09-10','morning',147,86,76,'');
+
+  // IMG_7713 右頁 - 9月 晚上
+  r('2026-09-04','evening',131,86,73,'');
+
+  // IMG_7713 右頁 - 9月中旬 早上
+  r('2026-09-17','morning',120,76,76,'');
+  r('2026-09-18','morning',125,78,76,'');
+  r('2026-09-19','morning',130,87,71,'');
+
+  // === IMG_7715 - 7月 (血壓藥吃半顆後) ===
+  r('2026-07-07','morning',118,68,68,'血壓藥吃半顆');
+  r('2026-07-08','morning',116,71,66,'');
+  r('2026-07-09','morning',114,67,69,'');
+  r('2026-07-10','morning',114,64,66,'');
+  r('2026-07-11','morning',105,63,60,'');
+  r('2026-07-12','morning',115,66,62,'');
+  r('2026-07-13','morning',111,70,62,'');
+  r('2026-07-14','morning',116,66,63,'');
+  r('2026-07-15','morning',122,70,63,'');
+  r('2026-07-16','morning',108,67,70,'');
+  r('2026-07-07','evening',119,63,80,'');
+  r('2026-07-08','evening',117,63,69,'');
+  r('2026-07-09','evening',114,64,66,'');
+  r('2026-07-10','evening',104,63,60,'');
+  r('2026-07-11','evening',105,63,66,'');
+  r('2026-07-12','evening',116,66,62,'');
+  r('2026-07-13','evening',116,66,64,'');
+  r('2026-07-14','evening',122,70,63,'');
+  r('2026-07-15','evening',120,68,68,'');
+  r('2026-07-17','morning',119,67,63,'');
+  r('2026-07-18','morning',119,66,69,'');
+  r('2026-07-19','morning',170,66,67,'');
+  r('2026-07-20','morning',108,65,67,'');
+  r('2026-07-21','morning',116,76,66,'');
+  r('2026-07-22','morning',131,76,66,'');
+
+  // === IMG_7716 - 9月 ===
+  r('2026-09-01','morning',153,74,69,'');
+  r('2026-09-02','morning',123,67,69,'');
+  r('2026-09-03','morning',116,67,67,'');
+  r('2026-09-05','morning',118,70,72,'');
+  r('2026-09-06','morning',132,78,68,'');
+  r('2026-09-07','morning',131,72,67,'');
+  r('2026-09-08','morning',118,73,65,'');
+  r('2026-09-09','morning',110,73,64,'');
+  r('2026-09-10','morning',124,73,69,'');
+  r('2026-09-11','morning',113,73,69,'');
+  r('2026-09-12','morning',122,67,61,'');
+  r('2026-09-13','morning',117,73,69,'');
+  r('2026-09-14','morning',104,78,60,'');
+  r('2026-09-15','morning',117,70,62,'');
+  r('2026-09-01','evening',127,74,67,'');
+  r('2026-09-02','evening',120,73,72,'');
+  r('2026-09-03','evening',133,72,67,'');
+
+  // === IMG_7717 - 8月 ===
+  r('2026-08-01','morning',137,71,71,'');
+  r('2026-08-02','morning',125,74,61,'');
+  r('2026-08-03','morning',121,67,68,'');
+  r('2026-08-04','morning',131,71,68,'');
+  r('2026-08-05','morning',131,72,70,'');
+  r('2026-08-06','morning',113,74,68,'');
+  r('2026-08-07','morning',112,74,68,'');
+  r('2026-08-08','morning',115,76,67,'');
+  r('2026-08-09','morning',125,68,65,'');
+  r('2026-08-10','morning',118,72,67,'');
+  r('2026-08-11','morning',123,70,65,'');
+  r('2026-08-12','morning',114,68,67,'');
+  r('2026-08-01','evening',126,72,69,'');
+  r('2026-08-02','evening',112,71,68,'');
+  r('2026-08-03','evening',157,67,71,'');
+  r('2026-08-04','evening',137,83,80,'');
+  r('2026-08-05','evening',129,61,74,'');
+  r('2026-08-06','evening',130,76,76,'');
+  r('2026-08-07','evening',128,79,73,'');
+  r('2026-08-08','evening',133,74,73,'');
+  r('2026-08-15','morning',139,74,65,'血壓藥吃半顆');
+  r('2026-08-16','morning',125,64,65,'');
+  r('2026-08-17','morning',129,82,80,'');
+  r('2026-08-18','morning',129,67,71,'');
+  r('2026-08-19','morning',130,76,76,'');
+  r('2026-08-20','morning',128,79,73,'');
+  r('2026-08-21','morning',133,74,73,'');
+
+  return records;
+}
+
+function getMomHistoricalData() {
+  return [];
+}
+
+// ============ APP STATE ============
+let appData = initData();
+let currentEditId = null;
+let sysChart = null;
+let diaChart = null;
+let pulseChart = null;
+
+// ============ UI FUNCTIONS ============
+
+function renderUserTabs() {
+  const container = document.getElementById('userTabs');
+  container.innerHTML = appData.users.map(u =>
+    `<button class="user-tab ${u === appData.currentUser ? 'active' : ''}" onclick="switchUser('${u}')">${u}</button>`
+  ).join('');
+}
+
+function switchUser(name) {
+  appData.currentUser = name;
+  saveData(appData);
+  renderUserTabs();
+  refreshAll();
+}
+
+function showPage(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  event.target.classList.add('active');
+  if (page === 'history') renderHistory();
+  if (page === 'chart') renderCharts();
+}
+
+function setTimeOfDay(time) {
+  document.querySelectorAll('.time-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector('.time-btn.' + time).classList.add('active');
+}
+
+function getSelectedTime() {
+  return document.querySelector('.time-btn.active').classList.contains('morning') ? 'morning' : 'evening';
+}
+
+function getCurrentRecords() {
+  return appData.records[appData.currentUser] || [];
+}
+
+function classifyBP(sys, dia) {
+  if (sys >= 140 || dia >= 90) return { label: '高血壓二期', cls: 'bp-high2' };
+  if (sys >= 130 || dia >= 80) return { label: '高血壓一期', cls: 'bp-high1' };
+  if (sys >= 120) return { label: '血壓偏高', cls: 'bp-elevated' };
+  return { label: '正常', cls: 'bp-normal' };
+}
+
+function showLatest() {
+  const records = getCurrentRecords();
+  if (records.length === 0) {
+    document.getElementById('latestCard').style.display = 'none';
+    return;
+  }
+  document.getElementById('latestCard').style.display = 'block';
+  const sorted = [...records].sort((a, b) => {
+    if (a.date !== b.date) return b.date.localeCompare(a.date);
+    return a.time === 'evening' ? -1 : 1;
+  });
+  const latest = sorted[0];
+  const bp = classifyBP(latest.systolic, latest.diastolic);
+  const timeLabel = latest.time === 'morning' ? '早上' : '晚上';
+
+  document.getElementById('latestInfo').textContent = `${latest.date} ${timeLabel}${latest.note ? ' - ' + latest.note : ''}`;
+  document.getElementById('latestReading').innerHTML = `
+    <div class="reading-box systolic">
+      <div class="label">收縮壓</div>
+      <div class="value">${latest.systolic}</div>
+      <div class="unit-small">mmHg</div>
+    </div>
+    <div class="reading-box diastolic">
+      <div class="label">舒張壓</div>
+      <div class="value">${latest.diastolic}</div>
+      <div class="unit-small">mmHg</div>
+    </div>
+    <div class="reading-box pulse">
+      <div class="label">脈搏</div>
+      <div class="value">${latest.pulse}</div>
+      <div class="unit-small">次/分鐘</div>
+    </div>
+  `;
+  document.getElementById('latestBadge').innerHTML = `<span class="bp-badge ${bp.cls}">${bp.label}</span>`;
+}
+
+function saveRecord() {
+  const date = document.getElementById('inputDate').value;
+  const time = getSelectedTime();
+  const sys = parseInt(document.getElementById('inputSystolic').value);
+  const dia = parseInt(document.getElementById('inputDiastolic').value);
+  const pulse = parseInt(document.getElementById('inputPulse').value);
+  const note = document.getElementById('inputNote').value.trim();
+
+  if (!date || isNaN(sys) || isNaN(dia) || isNaN(pulse)) {
+    showToast('請填寫日期、收縮壓、舒張壓和脈搏');
+    return;
+  }
+
+  if (!appData.records[appData.currentUser]) {
+    appData.records[appData.currentUser] = [];
+  }
+
+  appData.records[appData.currentUser].push({
+    id: Date.now() + Math.random(),
+    date, time, systolic: sys, diastolic: dia, pulse, note
+  });
+
+  saveData(appData);
+  showToast('記錄已儲存！');
+
+  // Clear form
+  document.getElementById('inputSystolic').value = '';
+  document.getElementById('inputDiastolic').value = '';
+  document.getElementById('inputPulse').value = '';
+  document.getElementById('inputNote').value = '';
+
+  showLatest();
+}
+
+function renderHistory() {
+  const records = getCurrentRecords();
+  const filterTime = document.getElementById('filterTime').value;
+  const filterRange = document.getElementById('filterRange').value;
+
+  let filtered = [...records];
+
+  if (filterTime !== 'all') {
+    filtered = filtered.filter(r => r.time === filterTime);
+  }
+
+  if (filterRange !== 'all') {
+    const days = parseInt(filterRange);
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+    const cutoffStr = cutoff.toISOString().split('T')[0];
+    filtered = filtered.filter(r => r.date >= cutoffStr);
+  }
+
+  filtered.sort((a, b) => {
+    if (a.date !== b.date) return b.date.localeCompare(a.date);
+    return a.time === 'evening' ? -1 : 1;
+  });
+
+  const body = document.getElementById('historyBody');
+  const empty = document.getElementById('historyEmpty');
+
+  if (filtered.length === 0) {
+    body.innerHTML = '';
+    empty.style.display = 'block';
+    return;
+  }
+  empty.style.display = 'none';
+
+  body.innerHTML = filtered.map(r => {
+    const bp = classifyBP(r.systolic, r.diastolic);
+    const timeTag = r.time === 'morning'
+      ? '<span class="morning-tag">早上</span>'
+      : '<span class="evening-tag">晚上</span>';
+    return `<tr onclick="openEditModal(${r.id})" style="cursor:pointer;">
+      <td>${r.date.slice(5)}</td>
+      <td>${timeTag}</td>
+      <td style="font-weight:700; color:#dc2626;">${r.systolic}</td>
+      <td style="font-weight:700; color:#2563eb;">${r.diastolic}</td>
+      <td style="font-weight:700; color:#16a34a;">${r.pulse}</td>
+      <td><span class="bp-badge ${bp.cls}" style="font-size:12px; padding:2px 8px;">${bp.label}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function openEditModal(id) {
+  const records = getCurrentRecords();
+  const record = records.find(r => r.id === id);
+  if (!record) return;
+
+  currentEditId = id;
+  document.getElementById('editDate').value = record.date;
+  document.getElementById('editTime').value = record.time;
+  document.getElementById('editSystolic').value = record.systolic;
+  document.getElementById('editDiastolic').value = record.diastolic;
+  document.getElementById('editPulse').value = record.pulse;
+  document.getElementById('editNote').value = record.note || '';
+  document.getElementById('editModal').classList.add('show');
+}
+
+function closeEditModal() {
+  document.getElementById('editModal').classList.remove('show');
+  currentEditId = null;
+}
+
+function saveEdit() {
+  const records = getCurrentRecords();
+  const idx = records.findIndex(r => r.id === currentEditId);
+  if (idx === -1) return;
+
+  records[idx].date = document.getElementById('editDate').value;
+  records[idx].time = document.getElementById('editTime').value;
+  records[idx].systolic = parseInt(document.getElementById('editSystolic').value);
+  records[idx].diastolic = parseInt(document.getElementById('editDiastolic').value);
+  records[idx].pulse = parseInt(document.getElementById('editPulse').value);
+  records[idx].note = document.getElementById('editNote').value.trim();
+
+  saveData(appData);
+  closeEditModal();
+  renderHistory();
+  showLatest();
+  showToast('已更新');
+}
+
+function deleteRecord() {
+  if (!confirm('確定要刪除這筆記錄嗎？')) return;
+  const records = getCurrentRecords();
+  const idx = records.findIndex(r => r.id === currentEditId);
+  if (idx !== -1) records.splice(idx, 1);
+  saveData(appData);
+  closeEditModal();
+  renderHistory();
+  showLatest();
+  showToast('已刪除');
+}
+
+function renderCharts() {
+  const records = getCurrentRecords();
+  const range = document.getElementById('statsRange').value;
+  const timeFilter = document.getElementById('statsTime').value;
+
+  let filtered = [...records];
+  if (timeFilter !== 'all') {
+    filtered = filtered.filter(r => r.time === timeFilter);
+  }
+  if (range !== 'all') {
+    const days = parseInt(range);
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+    const cutoffStr = cutoff.toISOString().split('T')[0];
+    filtered = filtered.filter(r => r.date >= cutoffStr);
+  }
+
+  filtered.sort((a, b) => {
+    if (a.date !== b.date) return a.date.localeCompare(b.date);
+    return a.time === 'morning' ? -1 : 1;
+  });
+
+  // Stats
+  if (filtered.length > 0) {
+    const avgSys = Math.round(filtered.reduce((s, r) => s + r.systolic, 0) / filtered.length);
+    const avgDia = Math.round(filtered.reduce((s, r) => s + r.diastolic, 0) / filtered.length);
+    const avgPulse = Math.round(filtered.reduce((s, r) => s + r.pulse, 0) / filtered.length);
+    const maxSys = Math.max(...filtered.map(r => r.systolic));
+    const minSys = Math.min(...filtered.map(r => r.systolic));
+    const bp = classifyBP(avgSys, avgDia);
+
+    document.getElementById('statsGrid').innerHTML = `
+      <div class="stat-item">
+        <div class="stat-label">平均收縮壓</div>
+        <div class="stat-value" style="color:#dc2626;">${avgSys}</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">平均舒張壓</div>
+        <div class="stat-value" style="color:#2563eb;">${avgDia}</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">平均脈搏</div>
+        <div class="stat-value" style="color:#16a34a;">${avgPulse}</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">收縮壓範圍</div>
+        <div class="stat-value" style="font-size:20px;">${minSys}-${maxSys}</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">總記錄數</div>
+        <div class="stat-value">${filtered.length}</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">平均分級</div>
+        <div class="stat-value"><span class="bp-badge ${bp.cls}" style="font-size:16px;">${bp.label}</span></div>
+      </div>
+    `;
+  } else {
+    document.getElementById('statsGrid').innerHTML = '<div style="text-align:center; padding:20px; color:var(--text-light); grid-column:1/-1;">沒有資料</div>';
+  }
+
+  // Charts - separate systolic/diastolic for clearer trends
+  const labels = filtered.map(r => {
+    const d = r.date.slice(5);
+    const t = r.time === 'morning' ? '早' : '晚';
+    return d + ' ' + t;
+  });
+
+  // Helper: draw horizontal reference line
+  function refLinePlugin(thresholds) {
+    return {
+      id: 'refLines',
+      beforeDraw(chart) {
+        const ctx = chart.ctx;
+        const yAxis = chart.scales.y;
+        const xAxis = chart.scales.x;
+        thresholds.forEach(t => {
+          const y = yAxis.getPixelForValue(t.value);
+          ctx.save();
+          ctx.beginPath();
+          ctx.setLineDash([6, 4]);
+          ctx.strokeStyle = t.color;
+          ctx.lineWidth = 1.5;
+          ctx.moveTo(xAxis.left, y);
+          ctx.lineTo(xAxis.right, y);
+          ctx.stroke();
+          ctx.fillStyle = t.color;
+          ctx.font = '12px sans-serif';
+          ctx.fillText(t.label, xAxis.right + 4, y + 4);
+          ctx.restore();
+        });
+      }
+    };
+  }
+
+  // Systolic Chart (收縮壓)
+  if (sysChart) sysChart.destroy();
+  const sysCtx = document.getElementById('sysChart').getContext('2d');
+  const sysData = filtered.map(r => r.systolic);
+  const sysMin = Math.min(...sysData, 100);
+  const sysMax = Math.max(...sysData, 150);
+  sysChart = new Chart(sysCtx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: '收縮壓',
+        data: sysData,
+        borderColor: '#dc2626',
+        backgroundColor: 'rgba(220,38,38,0.08)',
+        borderWidth: 2.5,
+        pointRadius: 3,
+        pointBackgroundColor: sysData.map(v => v >= 140 ? '#dc2626' : v >= 130 ? '#f59e0b' : '#16a34a'),
+        fill: true,
+        tension: 0.3
+      }]
+    },
+    plugins: [refLinePlugin([
+      { value: 120, color: '#16a34a', label: '正常 120' },
+      { value: 130, color: '#f59e0b', label: '偏高 130' },
+      { value: 140, color: '#dc2626', label: '高血壓 140' }
+    ])],
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => `收縮壓: ${ctx.raw} mmHg`
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { maxRotation: 45, font: { size: 10 }, maxTicksLimit: 20 } },
+        y: {
+          min: Math.max(sysMin - 15, 80),
+          max: sysMax + 15,
+          ticks: { font: { size: 13 }, stepSize: 10 },
+          grid: { color: 'rgba(0,0,0,0.05)' }
+        }
+      }
+    }
+  });
+
+  // Diastolic Chart (舒張壓)
+  if (diaChart) diaChart.destroy();
+  const diaCtx = document.getElementById('diaChart').getContext('2d');
+  const diaData = filtered.map(r => r.diastolic);
+  const diaMin = Math.min(...diaData, 60);
+  const diaMax = Math.max(...diaData, 95);
+  diaChart = new Chart(diaCtx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: '舒張壓',
+        data: diaData,
+        borderColor: '#2563eb',
+        backgroundColor: 'rgba(37,99,235,0.08)',
+        borderWidth: 2.5,
+        pointRadius: 3,
+        pointBackgroundColor: diaData.map(v => v >= 90 ? '#dc2626' : v >= 80 ? '#f59e0b' : '#16a34a'),
+        fill: true,
+        tension: 0.3
+      }]
+    },
+    plugins: [refLinePlugin([
+      { value: 80, color: '#f59e0b', label: '偏高 80' },
+      { value: 90, color: '#dc2626', label: '高血壓 90' }
+    ])],
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => `舒張壓: ${ctx.raw} mmHg`
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { maxRotation: 45, font: { size: 10 }, maxTicksLimit: 20 } },
+        y: {
+          min: Math.max(diaMin - 10, 40),
+          max: diaMax + 10,
+          ticks: { font: { size: 13 }, stepSize: 10 },
+          grid: { color: 'rgba(0,0,0,0.05)' }
+        }
+      }
+    }
+  });
+
+  // Pulse Chart (脈搏)
+  if (pulseChart) pulseChart.destroy();
+  const pulseCtx = document.getElementById('pulseChart').getContext('2d');
+  pulseChart = new Chart(pulseCtx, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: '脈搏',
+        data: filtered.map(r => r.pulse),
+        borderColor: '#16a34a',
+        backgroundColor: 'rgba(22,163,74,0.08)',
+        borderWidth: 2.5,
+        pointRadius: 3,
+        fill: true,
+        tension: 0.3
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { maxRotation: 45, font: { size: 10 }, maxTicksLimit: 20 } },
+        y: { min: 40, max: 100, ticks: { font: { size: 13 }, stepSize: 10 } }
+      }
+    }
+  });
+}
+
+// Settings
+function renderUserList() {
+  const list = document.getElementById('userList');
+  list.innerHTML = appData.users.map(u => `
+    <div style="display:flex; align-items:center; justify-content:space-between; padding:12px; background:#f8fafc; border-radius:10px; margin-bottom:8px;">
+      <span style="font-size:20px; font-weight:600;">${u}</span>
+      <span style="color:var(--text-light); font-size:14px;">${(appData.records[u] || []).length} 筆記錄</span>
+    </div>
+  `).join('');
+}
+
+function addUser() {
+  const name = document.getElementById('newUserName').value.trim();
+  if (!name) return;
+  if (appData.users.includes(name)) {
+    showToast('此使用者已存在');
+    return;
+  }
+  appData.users.push(name);
+  appData.records[name] = [];
+  saveData(appData);
+  document.getElementById('newUserName').value = '';
+  renderUserTabs();
+  renderUserList();
+  showToast(`已新增 ${name}`);
+}
+
+function exportCSV() {
+  const records = getCurrentRecords();
+  if (records.length === 0) { showToast('沒有資料可匯出'); return; }
+
+  const sorted = [...records].sort((a, b) => a.date.localeCompare(b.date));
+  let csv = '\uFEFF日期,時段,收縮壓(mmHg),舒張壓(mmHg),脈搏(次/分鐘),備註\n';
+  sorted.forEach(r => {
+    const time = r.time === 'morning' ? '早上' : '晚上';
+    csv += `${r.date},${time},${r.systolic},${r.diastolic},${r.pulse},"${r.note || ''}"\n`;
+  });
+
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `血壓記錄_${appData.currentUser}_${new Date().toISOString().split('T')[0]}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('CSV 已匯出');
+}
+
+function exportJSON() {
+  const blob = new Blob([JSON.stringify(appData, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `血壓記錄備份_${new Date().toISOString().split('T')[0]}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('備份已匯出');
+}
+
+function importJSON(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const imported = JSON.parse(e.target.result);
+      if (imported.users && imported.records) {
+        appData = imported;
+        saveData(appData);
+        renderUserTabs();
+        refreshAll();
+        showToast('資料已匯入！');
+      } else {
+        showToast('檔案格式錯誤');
+      }
+    } catch (err) {
+      showToast('無法讀取檔案');
+    }
+  };
+  reader.readAsText(file);
+}
+
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 2500);
+}
+
+function refreshAll() {
+  showLatest();
+  renderUserList();
+}
+
+// ============ INIT ============
+document.getElementById('inputDate').value = new Date().toISOString().split('T')[0];
+
+// Auto-select morning/evening based on current time
+if (new Date().getHours() >= 14) {
+  setTimeOfDay('evening');
+}
+
+renderUserTabs();
+showLatest();
+renderUserList();
+</script>
+</body>
+</html>
